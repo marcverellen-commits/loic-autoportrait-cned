@@ -154,10 +154,10 @@ h1 span{display:inline-block;animation:bob 3s ease-in-out infinite}@keyframes bo
 .zinfo{position:absolute;left:12px;bottom:12px;max-width:340px;background:#f6efe1f2;border:3px solid var(--ink);border-radius:10px;padding:10px 12px;font-size:15px;box-shadow:4px 4px 0 var(--ink);transform:scale(0);transform-origin:bottom left;transition:transform .35s cubic-bezier(.3,1.5,.5,1);z-index:2}
 .zinfo.on{transform:scale(1)}
 #axisView{position:absolute;inset:6%;background:#f6efe1;border:4px solid #2b2340;border-radius:12px;box-shadow:6px 6px 0 #2b2340;z-index:5;padding:10px;transform:scale(0);transition:transform .45s cubic-bezier(.3,1.4,.5,1);overflow:auto}#axisView.on{transform:scale(1)}.axhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:18px}.zinfo b{font-size:17px}
-.zone{cursor:pointer}.zone .hl{transition:opacity .3s;opacity:0}.zone:hover .hl,.zone.sel .hl{opacity:1}
+.zone{cursor:pointer;pointer-events:auto}.zone .hl{transition:opacity .3s;opacity:0;pointer-events:none}.zone:hover .hl,.zone.sel .hl{opacity:1}
 .zone text{pointer-events:none}
 .river{stroke-dasharray:14 10;animation:flow 2.5s linear infinite}@keyframes flow{to{stroke-dashoffset:-48}}
-.cloud{animation:drift 40s linear infinite}@keyframes drift{from{transform:translateX(-200px)}to{transform:translateX(1200px)}}
+.cloud{animation:drift 40s linear infinite;pointer-events:none}@keyframes drift{from{transform:translateX(-200px)}to{transform:translateX(1200px)}}
 .glow{animation:glow 2.4s ease-in-out infinite}@keyframes glow{50%{opacity:.35}}
 footer{text-align:center;padding:20px;font-size:18px}
 .sparkle{position:fixed;pointer-events:none;font-size:18px;animation:fly 1s forwards;z-index:99}@keyframes fly{to{transform:translateY(-60px) scale(.3);opacity:0}}
@@ -263,7 +263,7 @@ footer{text-align:center;padding:20px;font-size:18px}
       </section>
     </div>
     <section class="paper card wide" id="c-evbo"><div class="tape"></div>
-      <h2>Evbo et PVP Civilization</h2><span class="hint">Ouvre le portail · Zoome · Explore</span>
+      <h2>Evbo et PVP Civilization</h2><span class="hint">1. Ouvre le portail · 2. Tape une civilisation (arcs, épées, haches, tridents) ou Axis</span>
       <p class="txt show" id="t-evbo" style="margin-top:4px"></p>
       <div class="portalzone"><div class="portal" id="portal"><div class="fr"></div><div class="sw2"></div><div class="doorL"></div><div class="doorR"></div></div></div>
       <div class="mapwrap" id="mapwrap"><div class="map">
@@ -427,10 +427,17 @@ function clampVB(){VB.x=Math.max(0,Math.min(1000-VB.w,VB.x));VB.y=Math.max(0,Mat
 const mv=$('mapview');mv.addEventListener('wheel',e=>{e.preventDefault();mzoom(e.deltaY<0?1.2:1/1.2,e.clientX,e.clientY)},{passive:false});
 let moved=0;
 panZoom(svg,(dx,dy)=>{const r=svg.getBoundingClientRect();VB.x-=dx*VB.w/r.width;VB.y-=dy*VB.h/r.height;moved+=Math.abs(dx)+Math.abs(dy);clampVB();setVB()},(f,x,y)=>mzoom(f,x,y));
-svg.addEventListener('pointerdown',()=>moved=0);
+let tapX=0,tapY=0;
+svg.addEventListener('pointerdown',e=>{moved=0;tapX=e.clientX;tapY=e.clientY});
 $('mz1').onclick=()=>mzoom(1.4);$('mz2').onclick=()=>mzoom(1/1.4);$('mz0').onclick=()=>{Object.assign(VB,{x:0,y:0,w:1000,h:700});setVB()};
-function selZone(id){svg.querySelectorAll('.zone').forEach(x=>x.classList.toggle('sel',x.dataset.z===id));const z=TEXTES.pvpZones[id];$('zinfo').innerHTML=`<b>${z.nom}</b><br>${z.txt}`+(id==='axis'?'<br><button class=\"btn\" id=\"axOpen\" style=\"margin-top:6px\">Voir Axis</button>':'');if(id==='axis')$('axOpen').onclick=openAxis;$('zinfo').classList.add('on')}
-svg.querySelectorAll('.zone').forEach(g=>g.addEventListener('click',e=>{if(moved>6)return;selZone(g.dataset.z);sparkle(e.clientX,e.clientY,'✦')}));
+function selZone(id){if(!id||!TEXTES.pvpZones[id])return;svg.querySelectorAll('.zone').forEach(x=>x.classList.toggle('sel',x.dataset.z===id));const z=TEXTES.pvpZones[id];$('zinfo').innerHTML=`<b>${z.nom}</b><br>${z.txt}`+(id==='axis'?'<br><button class=\"btn\" id=\"axOpen\" style=\"margin-top:6px\">Voir Axis</button>':'');if(id==='axis')$('axOpen').onclick=openAxis;$('zinfo').classList.add('on')}
+function zoneFromEvent(e){let n=e.target;while(n&&n!==svg){if(n.dataset&&n.dataset.z)return n.dataset.z;n=n.parentNode}return null}
+svg.addEventListener('pointerup',e=>{
+  const dist=Math.hypot(e.clientX-tapX,e.clientY-tapY);
+  if(moved>18||dist>18)return;
+  const id=zoneFromEvent(e);if(!id)return;
+  e.stopPropagation();selZone(id);sparkle(e.clientX,e.clientY,'✦');
+});
 function openAxis(){$('axTitle').textContent=TEXTES.axisScene;$('axScene').innerHTML=axisSVG();$('axPhoto').src=AXIS_PHOTO;$('axCap').textContent=TEXTES.axisPhoto;$('axisView').classList.add('on')}
 $('axClose').onclick=()=>$('axisView').classList.remove('on');
 $('portal').onclick=e=>{const o=$('portal').classList.toggle('on');$('mapwrap').classList.toggle('open',o);sp(e,'✧')};
